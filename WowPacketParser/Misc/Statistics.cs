@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections;
 using WowPacketParser.Enums;
 
 namespace WowPacketParser.Misc
@@ -22,11 +23,21 @@ namespace WowPacketParser.Misc
         private DateTime _startTime;
         private DateTime _endTime;
 
+        private Packet firstPacket;
+        private Packet lastPacket;
+        private int count;
+        private long totalLength;
+        private long minLength;
+        private long maxLength;
+        private Hashtable opcodeCount;
+        private Hashtable directionCount;
+
         /// <summary>
         /// Initialized a new instance of Statistics.
         /// </summary>
         public Statistics()
         {
+            InitNewStatistics();
         }
 
         /// <summary>
@@ -40,6 +51,113 @@ namespace WowPacketParser.Misc
                 throw new ArgumentOutOfRangeException("packetCount", packetCount, "Packet count must be higher than zero.");
 
             _totalPacketCount = packetCount;
+            InitNewStatistics();
+        }
+
+        void InitNewStatistics()
+        {
+            count = 0;
+            totalLength = 0;
+            minLength = Int64.MaxValue;
+            maxLength = Int64.MinValue;
+            opcodeCount = new Hashtable();
+            directionCount = new Hashtable();
+        }
+
+        public void SetFirstPacket(Packet first)
+        {
+            firstPacket = first;
+        }
+
+        public Packet GetFirstPacket()
+        {
+            return firstPacket;
+        }
+
+        public void SetLastPacket(Packet last)
+        {
+            lastPacket = last;
+        }
+
+        public Packet GetLastPacket()
+        {
+            return lastPacket;
+        }
+
+        public void IncCount()
+        {
+            count++;
+        }
+
+        public int GetCount()
+        {
+            return count;
+        }
+
+        public void AddToTotalLength(long length)
+        {
+            totalLength += length;
+        }
+
+        public long GetTotalLength()
+        {
+            return totalLength;
+        }
+
+        public void SetMinLenth(long length)
+        {
+            minLength = (length < minLength ? length : minLength);
+        }
+
+        public void SetMaxLength(long length)
+        {
+            maxLength = (length > maxLength ? length : maxLength);
+        }
+
+        public long GetMinLength()
+        {
+            return minLength;
+        }
+
+        public long GetMaxLenth()
+        {
+            return maxLength;
+        }
+
+        public void CountOpcode(int op)
+        {
+            if (opcodeCount.ContainsKey(op))
+            {
+                opcodeCount[op] = ((int)opcodeCount[op]) + 1;
+            }
+            else
+                opcodeCount.Add(op, 1);
+        }
+
+        public void PrintOpcodeCount()
+        {
+            foreach (int key in opcodeCount.Keys)
+            {
+                Console.WriteLine("opcode: " + key + " (0x{0:X}) count: " + opcodeCount[key], key);
+            }
+        }
+
+        public void CountDirection(Direction dir)
+        {
+            if (directionCount.ContainsKey(dir))
+            {
+                directionCount[dir] = ((int)directionCount[dir]) + 1;
+            }
+            else
+                directionCount.Add(dir, 1);
+        }
+
+        public void PrintDirectionCount()
+        {
+            foreach (Direction key in directionCount.Keys)
+            {
+                Console.WriteLine("Direction: " + key + " count: " + directionCount[key], key);
+            }
         }
 
         /// <summary>

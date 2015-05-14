@@ -23,6 +23,9 @@ namespace WowPacketParser
                 return;
             }
 
+            Console.WriteLine("Press enter to start.");
+            Console.ReadLine();
+
             // config options are handled in Misc.Settings
             Utilities.RemoveConfigOptions(ref files);
 

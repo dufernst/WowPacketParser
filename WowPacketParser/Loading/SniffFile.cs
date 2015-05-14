@@ -88,12 +88,12 @@ namespace WowPacketParser.Loading
             {
                 case DumpFormatType.StatisticsPreParse:
                 {
-                    var packets = ReadPackets();
-                    if (packets.Count == 0)
+                    ReadPackets();
+                    if (_stats.GetCount() == 0)
                         break;
 
-                    var firstPacket = packets.First();
-                    var lastPacket = packets.Last();
+                    var firstPacket = _stats.GetFirstPacket();
+                    var lastPacket = _stats.GetLastPacket();
 
                     // CSV format
                     Trace.WriteLine(String.Format("{0};{1};{2};{3};{4};{5};{6};{7};{8}",
@@ -101,12 +101,23 @@ namespace WowPacketParser.Loading
                         firstPacket.Time,                                                  // - time of first packet
                         lastPacket.Time,                                                   // - time of last packet
                         (lastPacket.Time - firstPacket.Time).TotalSeconds,                 // - sniff duration (seconds)
-                        packets.Count,                                                     // - packet count
-                        packets.AsParallel().Sum(packet => packet.Length),                 // - total packets size (bytes)
-                        packets.AsParallel().Average(packet => packet.Length),             // - average packet size (bytes)
-                        packets.AsParallel().Min(packet => packet.Length),                 // - smaller packet size (bytes)
-                        packets.AsParallel().Max(packet => packet.Length)));               // - larger packet size (bytes)
+                        _stats.GetCount(),                                                 // - packet count
+                        _stats.GetTotalLength(),                                           // - total packets size (bytes)
+                        _stats.GetTotalLength() / _stats.GetCount(),                       // - average packet size (bytes)
+                        _stats.GetMinLength(),                                             // - smaller packet size (bytes)
+                        _stats.GetMaxLenth()));                                            // - larger packet size (bytes)
 
+                    Console.WriteLine("filename: {0}", _originalFileName);
+                    Console.WriteLine("fist packet time: {0}", firstPacket.Time);
+                    Console.WriteLine("last packet time: {0}", lastPacket.Time);
+                    Console.WriteLine("sniff duration (seconds): {0}", (lastPacket.Time - firstPacket.Time).TotalSeconds);
+                    Console.WriteLine("packet count: {0}", _stats.GetCount());
+                    Console.WriteLine("total packet size (bytes): {0}", _stats.GetTotalLength());
+                    Console.WriteLine("average packet size (bytes): {0}", _stats.GetTotalLength() / _stats.GetCount());
+                    Console.WriteLine("minimum packet size (bytes): {0}", _stats.GetMinLength());
+                    Console.WriteLine("maximum packet size (bytes): {0}", _stats.GetMaxLenth());
+                    _stats.PrintOpcodeCount();
+                    _stats.PrintDirectionCount();
                     break;
                 }
                 case DumpFormatType.SniffDataOnly:
@@ -251,7 +262,7 @@ namespace WowPacketParser.Loading
 
                     break;
                 }
-                case DumpFormatType.Pkt:
+                /*case DumpFormatType.Pkt:
                 {
                     var packets = ReadPackets();
                     if (packets.Count == 0)
@@ -308,7 +319,7 @@ namespace WowPacketParser.Loading
 
                     SessionSplitBinaryDump(packets);
                     break;
-                }
+                }*/
                 case DumpFormatType.CompressSniff:
                 {
                     if (extension == null || extension.ToLower() == ".gz")
@@ -351,7 +362,7 @@ namespace WowPacketParser.Loading
 
                     break;
                 }
-                case DumpFormatType.ConnectionIndexes:
+                /*case DumpFormatType.ConnectionIndexes:
                 {
                     var packets = ReadPackets();
                     if (packets.Count == 0)
@@ -389,7 +400,7 @@ namespace WowPacketParser.Loading
                     }
 
                     break;
-                }
+                }*/
                 default:
                 {
                     Trace.WriteLine(string.Format("{0}: Dump format is none, nothing will be processed.", _logPrefix));
@@ -423,23 +434,35 @@ namespace WowPacketParser.Loading
                 Console.WriteLine();
         }
 
-        public List<Packet> ReadPackets()
+        public void ReadPackets()
         {
             var packets = new List<Packet>();
 
             // stats.SetStartTime(DateTime.Now);
 
+            var count = 0;
+            Packet currentPacket;
+
             Reader.Read(_fileName, _originalFileName, p =>
             {
-                var packet = p.Item1;
+                currentPacket = p.Item1;
                 var currSize = p.Item2;
                 var totalSize = p.Item3;
 
-                ShowPercentProgress("Reading...", currSize, totalSize);
-                packets.Add(packet);
-            });
+                if (count == 0)
+                    _stats.SetFirstPacket(currentPacket);
 
-            return packets;
+                count++;
+                _stats.SetLastPacket(currentPacket);
+                _stats.IncCount();
+                _stats.AddToTotalLength(currentPacket.Length);
+                _stats.SetMaxLength(currentPacket.Length);
+                _stats.SetMinLenth(currentPacket.Length);
+                _stats.CountOpcode(currentPacket.Opcode);
+                _stats.CountDirection(currentPacket.Direction);
+
+                ShowPercentProgress("Reading...", currSize, totalSize);
+            });
 
             // stats.SetEndTime(DateTime.Now);
             // Trace.WriteLine(string.Format("{0}: {1}", _logPrefix, _stats));
